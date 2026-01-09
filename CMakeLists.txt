@@ -22,5 +22,8 @@ set(IMGUI_SOURCES
 include_directories(imgui)
 include_directories(imgui/backends)
 
-add_executable(opengl-imgui src/main.cpp src/glad.c src/rotatingcube.h src/rotatingcube.cpp include/glad/glad.h include/KHR/khrplatform.h ${IMGUI_SOURCES})
+add_executable(opengl-imgui WIN32 src/main.cpp src/glad.c src/rotatingcube.h src/rotatingcube.cpp include/glad/glad.h include/KHR/khrplatform.h ${IMGUI_SOURCES})
 target_link_libraries(opengl-imgui PRIVATE SDL3::SDL3 glm::glm)
+
+install(TARGETS opengl-imgui)
+install(FILES $<TARGET_RUNTIME_DLLS:opengl-imgui> TYPE BIN)

@@ -82,7 +82,12 @@ void draw() {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
+#ifdef WIN32
+#include <Windows.h>
+int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+#else
 int main() {
+#endif
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("could not initialize SDL: %s", SDL_GetError());
         return 1;
@@ -92,7 +97,7 @@ int main() {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
-    window = SDL_CreateWindow("OpenGL + ImGui", 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    window = SDL_CreateWindow("OpenGL + ImGui", 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
     if (!window) {
         SDL_Log("could not create window/renderer: %s", SDL_GetError());
@@ -103,6 +108,8 @@ int main() {
     gladLoadGLLoader((GLADloadproc) SDL_GL_GetProcAddress);
 
     print_gl_infos();
+
+    SDL_GL_SetSwapInterval(1);
 
     IMGUI_CHECKVERSION();
 
