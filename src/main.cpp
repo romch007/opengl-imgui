@@ -23,7 +23,7 @@ void print_gl_infos() {
     SDL_Log("GLSL: %s", glsl_ver);
 }
 
-void draw() {
+void draw(int output_width, int output_height) {
     ImGuiIO& io = ImGui::GetIO();
 
     ImGui_ImplOpenGL3_NewFrame();
@@ -69,13 +69,13 @@ void draw() {
 
     ImGui::Render();
 
-    glViewport(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+    glViewport(0, 0, output_width, output_height);
 
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    rotatingcube_draw(io.DisplaySize.x, io.DisplaySize.y);
+    rotatingcube_draw(output_width, output_height);
 
     glDisable(GL_DEPTH_TEST);
 
@@ -129,14 +129,24 @@ int main() {
 
     SDL_Event event;
     while (running) {
+        int output_width, output_height;
+        SDL_GetWindowSizeInPixels(window, &output_width, &output_height);
+
+        float scale = SDL_GetWindowDisplayScale(window);
+
+        float mouse_x, mouse_y;
+        SDL_GetMouseState(&mouse_x, &mouse_y);
+
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL3_ProcessEvent(&event);
 
             if (event.type == SDL_EVENT_QUIT)
                 running = false;
+            else
+                rotatingcube_handle_event(&event, scale);
         }
 
-        draw();
+        draw(output_width, output_height);
         SDL_GL_SwapWindow(window);
     }
 
