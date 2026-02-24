@@ -17,10 +17,10 @@ void print_gl_infos() {
     const GLubyte *version    = glGetString(GL_VERSION);
     const GLubyte *glsl_ver   = glGetString(GL_SHADING_LANGUAGE_VERSION);
 
-    SDL_Log("Vendor: %s", vendor);
-    SDL_Log("Renderer: %s", renderer);
-    SDL_Log("Version: %s", version);
-    SDL_Log("GLSL: %s", glsl_ver);
+    SDL_Log("OpenGL vendor:    %s", vendor);
+    SDL_Log("OpenGL renderer:  %s", renderer);
+    SDL_Log("OpenGL version:   %s", version);
+    SDL_Log("GLSL version:     %s", glsl_ver);
 }
 
 void draw(int output_width, int output_height) {
@@ -92,6 +92,8 @@ int main() {
         SDL_Log("could not initialize SDL: %s", SDL_GetError());
         return 1;
     }
+
+    SDL_Log("SDL video driver: %s", SDL_GetCurrentVideoDriver());
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
