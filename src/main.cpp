@@ -1,4 +1,6 @@
+#define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
 #include <SDL3/SDL_video.h>
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -7,23 +9,20 @@
 
 #include "rotatingcube.h"
 
-static SDL_Window *window = nullptr;
-static bool running = false;
-static bool vsync_enabled = true;
+struct AppState {
+    SDL_Window *window;
+    SDL_GLContext gl_context;
+    bool vsync_enabled;
+};
 
 void print_gl_infos() {
-    const GLubyte *vendor     = glGetString(GL_VENDOR);
-    const GLubyte *renderer   = glGetString(GL_RENDERER);
-    const GLubyte *version    = glGetString(GL_VERSION);
-    const GLubyte *glsl_ver   = glGetString(GL_SHADING_LANGUAGE_VERSION);
-
-    SDL_Log("OpenGL vendor:    %s", vendor);
-    SDL_Log("OpenGL renderer:  %s", renderer);
-    SDL_Log("OpenGL version:   %s", version);
-    SDL_Log("GLSL version:     %s", glsl_ver);
+    SDL_Log("OpenGL vendor:    %s", glGetString(GL_VENDOR));
+    SDL_Log("OpenGL renderer:  %s", glGetString(GL_RENDERER));
+    SDL_Log("OpenGL version:   %s", glGetString(GL_VERSION));
+    SDL_Log("GLSL version:     %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
 }
 
-void draw(int output_width, int output_height) {
+void draw(AppState *app, int output_width, int output_height) {
     ImGuiIO& io = ImGui::GetIO();
 
     ImGui_ImplOpenGL3_NewFrame();
@@ -36,11 +35,8 @@ void draw(int output_width, int output_height) {
     if (ImGui::Button(paused ? "Resume" : "Pause"))
         rotatingcube_pause(!paused);
 
-    if (ImGui::Checkbox("VSync", &vsync_enabled)) {
-        if (vsync_enabled)
-            SDL_GL_SetSwapInterval(1);
-        else
-            SDL_GL_SetSwapInterval(0);
+    if (ImGui::Checkbox("VSync", &app->vsync_enabled)) {
+        SDL_GL_SetSwapInterval(app->vsync_enabled ? 1 : 0);
     }
 
     ImGui::End();
@@ -70,7 +66,6 @@ void draw(int output_width, int output_height) {
     ImGui::Render();
 
     glViewport(0, 0, output_width, output_height);
-
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -78,19 +73,13 @@ void draw(int output_width, int output_height) {
     rotatingcube_draw(output_width, output_height);
 
     glDisable(GL_DEPTH_TEST);
-
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-#ifdef WIN32
-#include <Windows.h>
-int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-#else
-int main() {
-#endif
+SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("could not initialize SDL: %s", SDL_GetError());
-        return 1;
+        return SDL_APP_FAILURE;
     }
 
     SDL_Log("SDL video driver: %s", SDL_GetCurrentVideoDriver());
@@ -99,14 +88,18 @@ int main() {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
-    window = SDL_CreateWindow("OpenGL + ImGui", 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+    AppState *app = new AppState();
+    app->vsync_enabled = true;
 
-    if (!window) {
-        SDL_Log("could not create window/renderer: %s", SDL_GetError());
-        return 1;
+    app->window = SDL_CreateWindow("OpenGL + ImGui", 1280, 720,
+                                   SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+    if (!app->window) {
+        SDL_Log("could not create window: %s", SDL_GetError());
+        delete app;
+        return SDL_APP_FAILURE;
     }
 
-    SDL_GLContext gl_context = SDL_GL_CreateContext(window);
+    app->gl_context = SDL_GL_CreateContext(app->window);
     gladLoadGLLoader((GLADloadproc) SDL_GL_GetProcAddress);
 
     print_gl_infos();
@@ -114,7 +107,6 @@ int main() {
     SDL_GL_SetSwapInterval(1);
 
     IMGUI_CHECKVERSION();
-
     ImGui::CreateContext();
 
     ImGuiIO& io = ImGui::GetIO();
@@ -122,35 +114,46 @@ int main() {
 
     ImGui::StyleColorsDark();
 
-    ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
+    ImGui_ImplSDL3_InitForOpenGL(app->window, app->gl_context);
     ImGui_ImplOpenGL3_Init("#version 330 core");
 
     rotatingcube_init();
 
-    running = true;
+    *appstate = app;
+    return SDL_APP_CONTINUE;
+}
 
-    SDL_Event event;
-    while (running) {
-        int output_width, output_height;
-        SDL_GetWindowSizeInPixels(window, &output_width, &output_height);
+SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
+    AppState *app = (AppState *) appstate;
+    ImGuiIO& io = ImGui::GetIO();
 
-        float scale = SDL_GetWindowDisplayScale(window);
+    ImGui_ImplSDL3_ProcessEvent(event);
 
-        float mouse_x, mouse_y;
-        SDL_GetMouseState(&mouse_x, &mouse_y);
+    if (event->type == SDL_EVENT_QUIT)
+        return SDL_APP_SUCCESS;
 
-        while (SDL_PollEvent(&event)) {
-            ImGui_ImplSDL3_ProcessEvent(&event);
-
-            if (event.type == SDL_EVENT_QUIT)
-                running = false;
-            else if (!io.WantCaptureMouse)
-                rotatingcube_handle_event(&event, scale);
-        }
-
-        draw(output_width, output_height);
-        SDL_GL_SwapWindow(window);
+    if (!io.WantCaptureMouse) {
+        float scale = SDL_GetWindowDisplayScale(app->window);
+        rotatingcube_handle_event(event, scale);
     }
+
+    return SDL_APP_CONTINUE;
+}
+
+SDL_AppResult SDL_AppIterate(void *appstate) {
+    AppState *app = (AppState *) appstate;
+
+    int output_width, output_height;
+    SDL_GetWindowSizeInPixels(app->window, &output_width, &output_height);
+
+    draw(app, output_width, output_height);
+    SDL_GL_SwapWindow(app->window);
+
+    return SDL_APP_CONTINUE;
+}
+
+void SDL_AppQuit(void *appstate, SDL_AppResult result) {
+    AppState *app = (AppState *) appstate;
 
     rotatingcube_cleanup();
 
@@ -158,8 +161,9 @@ int main() {
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
 
-    SDL_GL_DestroyContext(gl_context);
-    SDL_DestroyWindow(window);
+    SDL_GL_DestroyContext(app->gl_context);
+    SDL_DestroyWindow(app->window);
+    delete app;
+
     SDL_Quit();
-    return 0;
 }
