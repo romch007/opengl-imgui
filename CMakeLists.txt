@@ -6,6 +6,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include_directories(include)
 
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
+message(STATUS "Found SDL3 ${SDL3_VERSION}")
+
 find_package(glm REQUIRED)
 
 set(IMGUI_SOURCES

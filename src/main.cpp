@@ -142,7 +142,7 @@ int main() {
 
             if (event.type == SDL_EVENT_QUIT)
                 running = false;
-            else
+            else if (!io.WantCaptureMouse)
                 rotatingcube_handle_event(&event, scale);
         }
 
