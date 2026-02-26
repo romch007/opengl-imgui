@@ -114,6 +114,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
     ImGui::StyleColorsDark();
 
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding    = 8.0f;
+    style.FrameRounding     = 4.0f;
+    style.PopupRounding     = 4.0f;
+    style.ChildRounding     = 4.0f;
+    style.ScrollbarRounding = 8.0f;
+    style.TabRounding       = 4.0f;
+
     ImGui_ImplSDL3_InitForOpenGL(app->window, app->gl_context);
     ImGui_ImplOpenGL3_Init("#version 330 core");
 
